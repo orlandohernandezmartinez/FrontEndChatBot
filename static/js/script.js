@@ -154,7 +154,7 @@ function stopRecording() {
       audioChunks = [];
 
       // Enviar el audio al backend para transcripción
-      fetch('https://backendvoicechat.onrender.com/stop-recording', {
+      fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
         method: 'POST',
         body: formData
       })
@@ -236,7 +236,7 @@ async function sendMessage(messageText, isVoiceMessage = false) {
       showLoading();
 
       // Llamar al backend
-      const response = await fetch('https://backendvoicechat.onrender.com/send-message', {
+      const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
