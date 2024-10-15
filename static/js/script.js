@@ -237,46 +237,60 @@ async function sendMessage(messageText, isVoiceMessage = false) {
     try {
       showLoading();  // Mostrar un loader mientras se procesa la solicitud
 
-      const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
-        method: 'POST',
+      // Llamar al backend con el mensaje del usuario
+      const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant?message=' + encodeURIComponent(messageText), {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: messageText,  // Texto o transcripción enviada al backend
-          audio_input: isVoiceMessage  // Parámetro booleano que indica si es audio o texto
-        })
+            'Content-Type': 'application/json',
+        }
       });
 
       const data = await response.json();  // Obtener la respuesta en formato JSON
       hideLoading();  // Ocultar el loader
 
-      // Mostrar la respuesta de texto
-      const botMessage = document.createElement('div');
-      botMessage.className = 'bot-message';
-
-      // Verificar si la respuesta contiene una URL
-      const urlRegex = /(https?:\/\/[^\s]+)/g;
-      const matches = data.raw_response.match(urlRegex);
-
-      if (matches) {
-        // Si se encuentra una URL, mostrarla como una imagen
-        matches.forEach(url => {
-          const img = document.createElement('img');
-          img.src = url;
-          img.alt = 'Product Image';
-          img.style.maxWidth = '100%';  // Ajustar el tamaño de la imagen
-          chatBody.appendChild(img);
-        });
-      } else {
-        // Si no hay URL, mostrar el texto de la respuesta
-        botMessage.textContent = data.raw_response;
+      // Verificar si el backend devuelve el campo 'answer'
+      if (data.answer) {
+        // Crear un nuevo mensaje con la respuesta del chatbot y agregarlo al chat
+        const botMessage = document.createElement('div');
+        botMessage.className = 'bot-message';
+        botMessage.textContent = data.answer;  // Usar 'answer' en lugar de 'response'
         chatBody.appendChild(botMessage);
+        chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
+
+        // Verificar si el backend devuelve una URL de imagen
+        if (data.image_url) {
+          const imageElement = document.createElement('img');
+          imageElement.src = data.image_url;
+          imageElement.alt = "Imagen del producto"; // Texto alternativo por si no se carga la imagen
+          imageElement.style.maxWidth = '100%'; // Ajustar el tamaño de la imagen para que no se desborde
+
+          const imageContainer = document.createElement('div');
+          imageContainer.className = 'image-message';  // Clase CSS para el estilo de la imagen
+          imageContainer.appendChild(imageElement);
+
+          chatBody.appendChild(imageContainer);
+          chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
+        }
+
+        // Verificar si existe una URL de audio en la respuesta y agregar un botón de reproducción
+        if (data.audio_url) {
+          const playButton = document.createElement('button');
+          playButton.textContent = "Reproducir Audio";
+          playButton.className = 'audio-play-button';  // Clase CSS opcional para estilo
+          playButton.onclick = () => playAudio(data.audio_url);  // Llamar a la función para reproducir audio
+          botMessage.appendChild(playButton);
+          console.log("Botón de reproducción de audio agregado:", playButton);  // Verificación en consola
+        }
+      } else {
+        // Si no existe el campo 'answer', mostrar un mensaje de error genérico en el chat
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'bot-message';
+        errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
+        chatBody.appendChild(errorMessage);
       }
 
-      chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
-
     } catch (error) {
+      // Manejo de errores en caso de fallas con la solicitud
       console.error('Error al enviar el mensaje:', error);
       hideLoading();  // Ocultar el loader en caso de error
 
