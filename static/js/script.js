@@ -208,18 +208,7 @@ function formatSeconds(seconds) {
 }
 
 // Función para mostrar la transcripción en el chat
-function showTranscriptionInChat(transcribedText) {
-  const chatBody = document.getElementById('chat-body');
-  const userMessage = document.createElement('div');
-  userMessage.className = 'user-message';
-  userMessage.textContent = transcribedText;
-  chatBody.appendChild(userMessage);
-  chatBody.scrollTop = chatBody.scrollHeight;
-  saveChatToLocalStorage();
-}
-
-// Modificar la función sendMessage para agregar un botón de reproducción de audio
-async function sendMessage(messageText, isVoiceMessage = false) {
+async function sendMessage(messageText) {
   const chatBody = document.getElementById('chat-body');
 
   if (messageText.length > 0) {
@@ -241,60 +230,40 @@ async function sendMessage(messageText, isVoiceMessage = false) {
       const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant?message=' + encodeURIComponent(messageText), {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
+          'Content-Type': 'application/json',
         }
       });
 
       const data = await response.json();  // Obtener la respuesta en formato JSON
       hideLoading();  // Ocultar el loader
 
-      // Verificar si el backend devuelve el campo 'answer'
-      if (data.answer) {
-        // Crear un nuevo mensaje con la respuesta del chatbot y agregarlo al chat
-        const botMessage = document.createElement('div');
-        botMessage.className = 'bot-message';
-        botMessage.textContent = data.answer;  // Usar 'answer' en lugar de 'response'
-        chatBody.appendChild(botMessage);
+      // Mostrar la respuesta en el chat
+      const botMessage = document.createElement('div');
+      botMessage.className = 'bot-message';
+      botMessage.textContent = data.answer;  // Usar 'answer' para el mensaje de texto
+      chatBody.appendChild(botMessage);
+      chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
+
+      // Intentar extraer una URL de imagen desde el mensaje
+      const imageUrl = extractImageUrl(data.answer);
+      if (imageUrl) {
+        // Si se encuentra una URL de imagen, renderizarla en el chat
+        const imageElement = document.createElement('img');
+        imageElement.src = imageUrl;
+        imageElement.alt = "Imagen del producto";
+        imageElement.style.maxWidth = '100%';  // Ajustar tamaño
+
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'image-message';  // Clase CSS opcional para estilo
+        imageContainer.appendChild(imageElement);
+        chatBody.appendChild(imageContainer);
         chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
-
-        // Verificar si el backend devuelve una URL de imagen
-        if (data.image_url) {
-          const imageElement = document.createElement('img');
-          imageElement.src = data.image_url;
-          imageElement.alt = "Imagen del producto"; // Texto alternativo por si no se carga la imagen
-          imageElement.style.maxWidth = '100%'; // Ajustar el tamaño de la imagen para que no se desborde
-
-          const imageContainer = document.createElement('div');
-          imageContainer.className = 'image-message';  // Clase CSS para el estilo de la imagen
-          imageContainer.appendChild(imageElement);
-
-          chatBody.appendChild(imageContainer);
-          chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
-        }
-
-        // Verificar si existe una URL de audio en la respuesta y agregar un botón de reproducción
-        if (data.audio_url) {
-          const playButton = document.createElement('button');
-          playButton.textContent = "Reproducir Audio";
-          playButton.className = 'audio-play-button';  // Clase CSS opcional para estilo
-          playButton.onclick = () => playAudio(data.audio_url);  // Llamar a la función para reproducir audio
-          botMessage.appendChild(playButton);
-          console.log("Botón de reproducción de audio agregado:", playButton);  // Verificación en consola
-        }
-      } else {
-        // Si no existe el campo 'answer', mostrar un mensaje de error genérico en el chat
-        const errorMessage = document.createElement('div');
-        errorMessage.className = 'bot-message';
-        errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
-        chatBody.appendChild(errorMessage);
       }
 
     } catch (error) {
-      // Manejo de errores en caso de fallas con la solicitud
       console.error('Error al enviar el mensaje:', error);
-      hideLoading();  // Ocultar el loader en caso de error
+      hideLoading();
 
-      // Mostrar un mensaje de error en el chat
       const errorMessage = document.createElement('div');
       errorMessage.className = 'bot-message';
       errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
