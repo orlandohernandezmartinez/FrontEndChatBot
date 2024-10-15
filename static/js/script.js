@@ -155,7 +155,7 @@ function stopRecording() {
 
       // Enviar el audio al backend para transcripción
       fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
-        method: 'GET',
+        method: 'POST',
         body: formData
       })
       .then(response => response.json())
@@ -236,13 +236,12 @@ async function sendMessage(messageText, isVoiceMessage = false) {
       showLoading();
 
       // Llamar al backend
-      const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
+      const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant?message=' + encodeURIComponent(messageText), {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: messageText }),
-      });
+            'Content-Type': 'application/json',
+        }
+    });
 
       const data = await response.json();
       hideLoading();
