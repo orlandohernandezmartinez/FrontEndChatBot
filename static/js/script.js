@@ -155,7 +155,7 @@ function stopRecording() {
 
       // Enviar el audio al backend para transcripción
       fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
-        method: 'POST',
+        method: 'GET',
         body: formData
       })
       .then(response => response.json())
@@ -237,7 +237,7 @@ async function sendMessage(messageText, isVoiceMessage = false) {
 
       // Llamar al backend
       const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
-        method: 'POST',
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
