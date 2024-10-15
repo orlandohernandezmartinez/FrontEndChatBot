@@ -207,6 +207,13 @@ function formatSeconds(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
+// Función para extraer la URL de la imagen desde el texto del mensaje
+function extractImageUrl(text) {
+  const urlRegex = /(https?:\/\/[^\s]+(?:png|jpg|jpeg|gif))/gi;
+  const matches = text.match(urlRegex);
+  return matches ? matches[0] : null;  // Devuelve la primera URL encontrada o null si no hay coincidencias
+}
+
 // Función para mostrar la transcripción en el chat
 async function sendMessage(messageText) {
   const chatBody = document.getElementById('chat-body');
