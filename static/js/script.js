@@ -223,63 +223,74 @@ async function sendMessage(messageText, isVoiceMessage = false) {
   const chatBody = document.getElementById('chat-body');
 
   if (messageText.length > 0) {
+    // Crear el mensaje del usuario y agregarlo al cuerpo del chat
     const userMessage = document.createElement('div');
     userMessage.className = 'user-message';
     userMessage.textContent = messageText;
     chatBody.appendChild(userMessage);
 
+    // Limpiar el campo de entrada y actualizar el botón de enviar
     document.getElementById('user-input').value = '';
     toggleSendButton();
     saveChatToLocalStorage();
 
     try {
-      showLoading();
+      showLoading();  // Mostrar un loader mientras se procesa la solicitud
 
-      // Llamar al backend
+      // Llamar al backend con el mensaje del usuario
       const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant?message=' + encodeURIComponent(messageText), {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
         }
-    });
+      });
 
-      const data = await response.json();
-      hideLoading();
+      const data = await response.json();  // Obtener la respuesta en formato JSON
+      hideLoading();  // Ocultar el loader
 
-      // Mostrar la respuesta de GPT en el chat
-      const botMessage = document.createElement('div');
-      botMessage.className = 'bot-message';
-      botMessage.textContent = data.response;
-      chatBody.appendChild(botMessage);
+      // Verificar si el backend devuelve el campo 'answer'
+      if (data.answer) {
+        // Crear un nuevo mensaje con la respuesta del chatbot y agregarlo al chat
+        const botMessage = document.createElement('div');
+        botMessage.className = 'bot-message';
+        botMessage.textContent = data.answer;  // Usar 'answer' en lugar de 'response'
+        chatBody.appendChild(botMessage);
+        chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
 
-      // Desplazar el chat hacia abajo
-      chatBody.scrollTop = chatBody.scrollHeight;
+        // Verificar si la respuesta contiene palabras clave relacionadas con productos
+        const keywords = ['producto', 'productos', 'mayya comfort bikini', 'mayya comfort lace', 'mayya maxx bamboo', 'mayya safe kit']; // Lista de palabras clave
+        const containsKeyword = keywords.some(keyword => data.answer.toLowerCase().includes(keyword));  // Buscar coincidencias
 
-      // Verificar si la respuesta de GPT contiene palabras clave relacionadas con productos
-      const keywords = ['producto', 'productos', 'mayya comfort bikini', 'mayya comfort lace', 'mayya maxx bamboo', 'mayya safe kit']; // Convertir todas las palabras clave a minúsculas
-      const containsKeyword = keywords.some(keyword => data.response.toLowerCase().includes(keyword));
+        console.log("Palabras clave encontradas:", containsKeyword);  // Depuración para ver si se detectan palabras clave
 
-      console.log("Palabras clave encontradas:", containsKeyword); // Depuración para ver si detecta las palabras clave
+        if (containsKeyword) {
+          // Si se encuentran palabras clave, renderizar un cuadro de producto
+          renderProductBox();
+        }
 
-      if (containsKeyword) {
-        // Si hay coincidencia con las palabras clave, renderizar el cuadro blanco
-        renderProductBox();
-      }
-
-      // Verificar si existe una URL de audio en la respuesta
-      if (data.audio_url) {
-        const playButton = document.createElement('button');
-        playButton.textContent = "Reproducir Audio";
-        playButton.className = 'audio-play-button'; // Clase CSS opcional para estilo
-        playButton.onclick = () => playAudio(data.audio_url);
-        botMessage.appendChild(playButton);
-        console.log("Botón de reproducción de audio agregado:", playButton);  // Verificación en consola
+        // Verificar si existe una URL de audio en la respuesta y agregar un botón de reproducción
+        if (data.audio_url) {
+          const playButton = document.createElement('button');
+          playButton.textContent = "Reproducir Audio";
+          playButton.className = 'audio-play-button';  // Clase CSS opcional para estilo
+          playButton.onclick = () => playAudio(data.audio_url);  // Llamar a la función para reproducir audio
+          botMessage.appendChild(playButton);
+          console.log("Botón de reproducción de audio agregado:", playButton);  // Verificación en consola
+        }
+      } else {
+        // Si no existe el campo 'answer', mostrar un mensaje de error genérico en el chat
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'bot-message';
+        errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
+        chatBody.appendChild(errorMessage);
       }
 
     } catch (error) {
+      // Manejo de errores en caso de fallas con la solicitud
       console.error('Error al enviar el mensaje:', error);
-      hideLoading();
+      hideLoading();  // Ocultar el loader en caso de error
 
+      // Mostrar un mensaje de error en el chat
       const errorMessage = document.createElement('div');
       errorMessage.className = 'bot-message';
       errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
