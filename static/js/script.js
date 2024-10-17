@@ -187,90 +187,91 @@ async function sendMessage(messageText, isVoiceMessage = false) {
   const chatBody = document.getElementById('chat-body');
 
   if (messageText.length > 0) {
-    // Crear el mensaje del usuario y agregarlo al cuerpo del chat
-    const userMessage = document.createElement('div');
-    userMessage.className = 'user-message';
-    userMessage.textContent = messageText;
-    chatBody.appendChild(userMessage);
+      // Crear el mensaje del usuario y agregarlo al cuerpo del chat
+      const userMessage = document.createElement('div');
+      userMessage.className = 'user-message';
+      userMessage.textContent = messageText;
+      chatBody.appendChild(userMessage);
 
-    // Limpiar el campo de entrada y actualizar el botón de enviar
-    document.getElementById('user-input').value = '';
-    toggleSendButton();
-    saveChatToLocalStorage();
+      // Limpiar el campo de entrada y actualizar el botón de enviar
+      document.getElementById('user-input').value = '';
+      toggleSendButton();
+      saveChatToLocalStorage();
 
-    try {
-      showLoading();  // Mostrar un loader mientras se procesa la solicitud
+      try {
+          showLoading();  // Mostrar un loader mientras se procesa la solicitud
 
-      // Codificar los parámetros en la URL para la solicitud GET
-      const url = new URL('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant');
-      const params = {
-        message: messageText,
-        isVoiceMessage: isVoiceMessage  // Flag para indicar si es un mensaje de voz
-      };
+          // Llamar al endpoint de generación de texto
+          const url = new URL('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant');
+          const params = {
+              message: messageText,
+              isVoiceMessage: isVoiceMessage  // Flag para indicar si es un mensaje de voz
+          };
 
-      Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+          Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-      // Llamar al backend con el mensaje del usuario (método GET)
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
+          // Llamar al backend con el mensaje del usuario (método GET)
+          const response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                  'Content-Type': 'application/json',
+              }
+          });
 
-      const data = await response.json();  // Obtener la respuesta en formato JSON
-      hideLoading();  // Ocultar el loader
+          const data = await response.json();  // Obtener la respuesta en formato JSON
+          hideLoading();  // Ocultar el loader
 
-      // Mostrar la respuesta en el chat
-      const textResponse = data.answer || data.response || '';  // Priorizar 'answer', luego 'response'
+          // Mostrar la respuesta en el chat
+          const textResponse = data.answer || data.response || '';  // Priorizar 'answer', luego 'response'
 
-      if (textResponse) {
-        const botMessage = document.createElement('div');
-        botMessage.className = 'bot-message';
-        botMessage.textContent = textResponse;
-        chatBody.appendChild(botMessage);
-        chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
+          if (textResponse) {
+              const botMessage = document.createElement('div');
+              botMessage.className = 'bot-message';
+              botMessage.textContent = textResponse;
+              chatBody.appendChild(botMessage);
+              chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
 
-        // Intentar extraer una URL de audio si existe
-        if (data.audio_url) {
-          const playButton = document.createElement('button');
-          playButton.textContent = "Reproducir Audio";
-          playButton.className = 'audio-play-button';
-          playButton.onclick = () => playAudio(data.audio_url);
-          botMessage.appendChild(playButton);
-        }
+              // Si el mensaje es de voz, o si decides generar audio para cualquier respuesta
+              if (isVoiceMessage) {
+                  // Llamar al endpoint de generación de audio con el texto de la respuesta
+                  const audioResponse = await fetch('https://api.servidorchatbot.com/api/v1/openai/generate-audio-1', {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ text: textResponse })  // Enviar el texto al backend para generar el audio
+                  });
 
-        // Extraer y renderizar URL de imagen si existe
-        const imageUrl = extractImageUrl(textResponse);
-        if (imageUrl) {
-          const imageElement = document.createElement('img');
-          imageElement.src = imageUrl;
-          imageElement.alt = "Imagen del producto";
-          imageElement.style.maxWidth = '100%';
+                  const audioData = await audioResponse.json();
+                  const audioUrl = audioData.audio_url;
 
-          const imageContainer = document.createElement('div');
-          imageContainer.className = 'image-message';
-          imageContainer.appendChild(imageElement);
-          chatBody.appendChild(imageContainer);
-        }
+                  if (audioUrl) {
+                      // Agregar un botón para reproducir el audio
+                      const playButton = document.createElement('button');
+                      playButton.textContent = "Reproducir Audio";
+                      playButton.className = 'audio-play-button';
+                      playButton.onclick = () => playAudio(audioUrl);
+                      botMessage.appendChild(playButton);
+                  }
+              }
 
-      } else {
-        const errorMessage = document.createElement('div');
-        errorMessage.className = 'bot-message';
-        errorMessage.textContent = 'No se recibió respuesta válida del backend.';
-        chatBody.appendChild(errorMessage);
+          } else {
+              const errorMessage = document.createElement('div');
+              errorMessage.className = 'bot-message';
+              errorMessage.textContent = 'No se recibió respuesta válida del backend.';
+              chatBody.appendChild(errorMessage);
+          }
+
+      } catch (error) {
+          console.error('Error al enviar el mensaje:', error);
+          hideLoading();
+
+          const errorMessage = document.createElement('div');
+          errorMessage.className = 'bot-message';
+          errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
+          chatBody.appendChild(errorMessage);
+          chatBody.scrollTop = chatBody.scrollHeight;
       }
-
-    } catch (error) {
-      console.error('Error al enviar el mensaje:', error);
-      hideLoading();
-
-      const errorMessage = document.createElement('div');
-      errorMessage.className = 'bot-message';
-      errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
-      chatBody.appendChild(errorMessage);
-      chatBody.scrollTop = chatBody.scrollHeight;
-    }
   }
 }
 
@@ -278,11 +279,10 @@ async function sendMessage(messageText, isVoiceMessage = false) {
 function playAudio(audioUrl) {
   const audio = new Audio(audioUrl);
   audio.addEventListener('canplaythrough', () => {
-    audio.play();
+      audio.play();
   });
   audio.load();  // Pre-carga el audio con el nuevo URL
 }
-
 // Mostrar un loader
 function showLoading() {
   const chatBody = document.getElementById('chat-body');
