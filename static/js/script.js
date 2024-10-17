@@ -244,27 +244,39 @@ async function sendMessage(messageText) {
       const data = await response.json();  // Obtener la respuesta en formato JSON
       hideLoading();  // Ocultar el loader
 
-      // Mostrar la respuesta en el chat
-      const botMessage = document.createElement('div');
-      botMessage.className = 'bot-message';
-      botMessage.textContent = data.answer;  // Usar 'answer' para el mensaje de texto
-      chatBody.appendChild(botMessage);
-      chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
+      // Verifica si el backend está devolviendo 'answer' o 'response'
+      const textResponse = data.answer || data.response || '';  // Priorizar 'answer', luego 'response'
 
-      // Intentar extraer una URL de imagen desde el mensaje
-      const imageUrl = extractImageUrl(data.answer);
-      if (imageUrl) {
-        // Si se encuentra una URL de imagen, renderizarla en el chat
-        const imageElement = document.createElement('img');
-        imageElement.src = imageUrl;
-        imageElement.alt = "Imagen del producto";
-        imageElement.style.maxWidth = '100%';  // Ajustar tamaño
-
-        const imageContainer = document.createElement('div');
-        imageContainer.className = 'image-message';  // Clase CSS opcional para estilo
-        imageContainer.appendChild(imageElement);
-        chatBody.appendChild(imageContainer);
+      // Si hay una respuesta válida
+      if (textResponse) {
+        // Crear un nuevo mensaje con la respuesta del chatbot y agregarlo al chat
+        const botMessage = document.createElement('div');
+        botMessage.className = 'bot-message';
+        botMessage.textContent = textResponse;
+        chatBody.appendChild(botMessage);
         chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
+
+        // Intentar extraer una URL de imagen desde el mensaje
+        const imageUrl = extractImageUrl(textResponse);
+        if (imageUrl) {
+          // Si se encuentra una URL de imagen, renderizarla en el chat
+          const imageElement = document.createElement('img');
+          imageElement.src = imageUrl;
+          imageElement.alt = "Imagen del producto";
+          imageElement.style.maxWidth = '100%';  // Ajustar tamaño
+
+          const imageContainer = document.createElement('div');
+          imageContainer.className = 'image-message';  // Clase CSS opcional para estilo
+          imageContainer.appendChild(imageElement);
+          chatBody.appendChild(imageContainer);
+          chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
+        }
+      } else {
+        // Si no hay respuesta válida, mostrar un mensaje de error genérico en el chat
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'bot-message';
+        errorMessage.textContent = 'No se recibió respuesta válida del backend.';
+        chatBody.appendChild(errorMessage);
       }
 
     } catch (error) {
