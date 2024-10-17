@@ -4,8 +4,12 @@ let mediaRecorder;
 let audioChunks = [];
 let micPermissionGranted = false;
 let stream = null;  // Agregado para manejar el stream de audio
+// Variables para la API de Web Speech
+let recognition;
+let recognizing = false;
 
 document.addEventListener("DOMContentLoaded", function () {
+  initWebSpeechAPI();
   const micBtn = document.getElementById('mic-btn');
   const chatBtn = document.querySelector('.chatbot-btn');
   const closeBtn = document.querySelector('.close-btn');
@@ -73,6 +77,48 @@ function loadChatHistory() {
 // Enviar mensaje predefinido
 function sendPreloadedMessage(message) {
   sendMessage(message);
+}
+
+// Inicializar la Web Speech API
+function initWebSpeechAPI() {
+  recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = 'es-ES';  // Ajustar el idioma
+  recognition.interimResults = false;  // Si quieres resultados parciales mientras habla
+  recognition.maxAlternatives = 1;  // Máximo número de resultados alternativos
+
+  recognition.onstart = function() {
+    recognizing = true;
+    console.log("Iniciando transcripción por voz...");
+  };
+
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;  // Obtener el texto transcrito
+    console.log("Transcripción completa:", transcript);
+    sendMessage(transcript, true);  // Enviar el mensaje con el flag de mensaje de audio
+  };
+
+  recognition.onerror = function(event) {
+    console.error('Error en la transcripción:', event.error);
+  };
+
+  recognition.onend = function() {
+    recognizing = false;
+    console.log("Finalizó la transcripción.");
+  };
+}
+
+// Iniciar la grabación de voz y transcripción
+function startRecordingAndTranscribing() {
+  if (recognition && !recognizing) {
+    recognition.start();  // Comienza la transcripción
+  }
+}
+
+// Detener la grabación de voz y transcripción
+function stopRecordingAndTranscribing() {
+  if (recognition && recognizing) {
+    recognition.stop();  // Detiene la transcripción
+  }
 }
 
 // Iniciar la grabación de audio y el conteo de tiempo
@@ -215,7 +261,7 @@ function extractImageUrl(text) {
 }
 
 // Función para mostrar la transcripción en el chat
-async function sendMessage(messageText) {
+async function sendMessage(messageText, isVoiceMessage = false) {
   const chatBody = document.getElementById('chat-body');
 
   if (messageText.length > 0) {
@@ -233,46 +279,44 @@ async function sendMessage(messageText) {
     try {
       showLoading();  // Mostrar un loader mientras se procesa la solicitud
 
+      // Preparar los datos para enviar al backend
+      const payload = {
+        message: messageText,
+        isVoiceMessage: isVoiceMessage  // Flag para indicar si es un mensaje de voz
+      };
+
       // Llamar al backend con el mensaje del usuario
-      const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant?message=' + encodeURIComponent(messageText), {
-        method: 'GET',
+      const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify(payload)  // Enviar el flag y el mensaje
       });
 
       const data = await response.json();  // Obtener la respuesta en formato JSON
       hideLoading();  // Ocultar el loader
 
-      // Verifica si el backend está devolviendo 'answer' o 'response'
+      // Mostrar la respuesta en el chat
       const textResponse = data.answer || data.response || '';  // Priorizar 'answer', luego 'response'
 
-      // Si hay una respuesta válida
       if (textResponse) {
-        // Crear un nuevo mensaje con la respuesta del chatbot y agregarlo al chat
         const botMessage = document.createElement('div');
         botMessage.className = 'bot-message';
         botMessage.textContent = textResponse;
         chatBody.appendChild(botMessage);
         chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
 
-        // Intentar extraer una URL de imagen desde el mensaje
-        const imageUrl = extractImageUrl(textResponse);
-        if (imageUrl) {
-          // Si se encuentra una URL de imagen, renderizarla en el chat
-          const imageElement = document.createElement('img');
-          imageElement.src = imageUrl;
-          imageElement.alt = "Imagen del producto";
-          imageElement.style.maxWidth = '100%';  // Ajustar tamaño
-
-          const imageContainer = document.createElement('div');
-          imageContainer.className = 'image-message';  // Clase CSS opcional para estilo
-          imageContainer.appendChild(imageElement);
-          chatBody.appendChild(imageContainer);
-          chatBody.scrollTop = chatBody.scrollHeight;  // Desplazar el chat hacia abajo
+        // Intentar extraer una URL de audio si existe
+        if (data.audio_url) {
+          const playButton = document.createElement('button');
+          playButton.textContent = "Reproducir Audio";
+          playButton.className = 'audio-play-button';
+          playButton.onclick = () => playAudio(data.audio_url);
+          botMessage.appendChild(playButton);
         }
+
       } else {
-        // Si no hay respuesta válida, mostrar un mensaje de error genérico en el chat
         const errorMessage = document.createElement('div');
         errorMessage.className = 'bot-message';
         errorMessage.textContent = 'No se recibió respuesta válida del backend.';
