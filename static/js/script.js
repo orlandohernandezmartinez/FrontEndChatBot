@@ -232,12 +232,10 @@ async function sendMessage(messageText, isVoiceMessage = false) {
         chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
 
         // Si el mensaje es de voz, llamar al endpoint de generación de audio
-        // Si el mensaje es de voz, llamar al endpoint de generación de audio
-      if (isVoiceMessage) {
-        if (textResponse && textResponse.length > 0) {  // Asegúrate de que textResponse contiene texto
+        if (isVoiceMessage) {
           try {
             // Hacer la petición al endpoint de generación de audio
-            const audioResponse = await fetch('https://api.servidorchatbot.com/api/v1/openai/generate-audio-1', {
+            const audioResponse = await fetch('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -261,10 +259,7 @@ async function sendMessage(messageText, isVoiceMessage = false) {
           } catch (audioError) {
             console.error('Error al generar el audio:', audioError);
           }
-        } else {
-          console.error('textResponse no contiene texto válido.');
         }
-      }
 
       } else {
         const errorMessage = document.createElement('div');
@@ -294,7 +289,6 @@ function playAudio(audioUrl) {
   });
   audio.load();  // Pre-carga el audio con el nuevo URL
 }
-
 // Mostrar un loader
 function showLoading() {
   const chatBody = document.getElementById('chat-body');
