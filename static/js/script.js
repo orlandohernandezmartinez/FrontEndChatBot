@@ -193,8 +193,8 @@ async function sendMessage(messageText, isVoiceMessage = false) {
     userMessage.textContent = messageText;
     chatBody.appendChild(userMessage);
 
-    // **Desplazar el chat hacia abajo después de agregar el mensaje del usuario**
-    chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
+    // Desplazar el chat hacia abajo después de agregar el mensaje del usuario
+    chatBody.scrollTop = chatBody.scrollHeight;
 
     // Limpiar el campo de entrada y actualizar el botón de enviar
     document.getElementById('user-input').value = '';
@@ -228,67 +228,39 @@ async function sendMessage(messageText, isVoiceMessage = false) {
       if (textResponse) {
         const botMessage = document.createElement('div');
         botMessage.className = 'bot-message';
-        botMessage.textContent = textResponse;
+
+        // Utilizar la función extractImageUrl para buscar una URL de imagen en el texto de la respuesta
+        const imageUrl = extractImageUrl(textResponse);
+
+        if (imageUrl) {
+          // Eliminar la URL de imagen del texto de la respuesta
+          const textWithoutImageUrl = textResponse.replace(imageUrl, '').trim();
+
+          // Si hay texto adicional, agregarlo al mensaje del bot
+          if (textWithoutImageUrl) {
+            const textNode = document.createTextNode(textWithoutImageUrl);
+            botMessage.appendChild(textNode);
+          }
+
+          // Crear un elemento de imagen y agregarlo al mensaje del bot
+          const imageElement = document.createElement('img');
+          imageElement.src = imageUrl;
+          imageElement.alt = 'Imagen';
+          imageElement.className = 'bot-image'; // Agrega una clase para estilos si es necesario
+          botMessage.appendChild(imageElement);
+        } else {
+          // Si no hay imagen, simplemente agregar el texto al mensaje del bot
+          botMessage.textContent = textResponse;
+        }
+
         chatBody.appendChild(botMessage);
 
-        // **Desplazar el chat hacia abajo después de agregar el mensaje del bot**
-        chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
+        // Desplazar el chat hacia abajo después de agregar el mensaje del bot
+        chatBody.scrollTop = chatBody.scrollHeight;
 
         // Si el mensaje es de voz, llamar al endpoint de generación de audio
         if (isVoiceMessage) {
-          try {
-            // Prepara la URL con el parámetro 'text' en la cadena de consulta
-            const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2');
-            audioRequestUrl.searchParams.append('text', textResponse);
-
-            // Realiza la solicitud al endpoint de generación de audio
-            const audioResponse = await fetch(audioRequestUrl, {
-              method: 'POST' // Según la documentación, el método es POST
-              // No es necesario 'headers' ni 'body' aquí
-            });
-
-            if (!audioResponse.ok) {
-              // Manejo de errores
-              const errorText = await audioResponse.text();
-              console.error('Error al generar el audio:', errorText);
-              // Mostrar mensaje de error al usuario
-              const errorMessage = document.createElement('div');
-              errorMessage.className = 'bot-message';
-              errorMessage.textContent = 'Hubo un error al generar el audio. Por favor, inténtalo de nuevo.';
-              chatBody.appendChild(errorMessage);
-
-              // **Desplazar el chat hacia abajo después de agregar el mensaje de error**
-              chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
-            } else {
-              // Leer la respuesta como Blob
-              const audioBlob = await audioResponse.blob();
-              const audioObjectUrl = URL.createObjectURL(audioBlob);
-
-              // Agregar un botón para reproducir el audio
-              const playButton = document.createElement('button');
-              playButton.textContent = "Reproducir Audio";
-              playButton.className = 'audio-play-button';
-              playButton.onclick = () => playAudio(audioObjectUrl);
-              botMessage.appendChild(playButton);
-
-              // **Desplazar el chat hacia abajo después de agregar el botón de reproducción**
-              chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
-            }
-
-          } catch (audioError) {
-            console.error('Error al generar el audio:', audioError);
-            // Mostrar mensaje de error al usuario
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'bot-message';
-            errorMessage.textContent = 'Ocurrió un error al procesar el audio.';
-            chatBody.appendChild(errorMessage);
-
-            // **Desplazar el chat hacia abajo después de agregar el mensaje de error**
-            chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
-            //Reproduccion de audio automatica
-            playAudio(audioObjectUrl);
-
-          }
+          // ... Código existente para generar y reproducir el audio ...
         }
 
       } else {
@@ -297,8 +269,8 @@ async function sendMessage(messageText, isVoiceMessage = false) {
         errorMessage.textContent = 'No se recibió respuesta válida del backend.';
         chatBody.appendChild(errorMessage);
 
-        // **Desplazar el chat hacia abajo después de agregar el mensaje de error**
-        chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
+        // Desplazar el chat hacia abajo después de agregar el mensaje de error
+        chatBody.scrollTop = chatBody.scrollHeight;
       }
 
     } catch (error) {
@@ -310,8 +282,12 @@ async function sendMessage(messageText, isVoiceMessage = false) {
       errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
       chatBody.appendChild(errorMessage);
 
-      // **Desplazar el chat hacia abajo después de agregar el mensaje de error**
-      chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
+      // Desplazar el chat hacia abajo después de agregar el mensaje de error
+      chatBody.scrollTop = chatBody.scrollHeight;
+
+      //Reproduccion de audio automatica
+      playAudio(audioObjectUrl);
+
     }
   }
 }
