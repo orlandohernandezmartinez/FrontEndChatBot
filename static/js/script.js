@@ -193,6 +193,9 @@ async function sendMessage(messageText, isVoiceMessage = false) {
     userMessage.textContent = messageText;
     chatBody.appendChild(userMessage);
 
+    // **Desplazar el chat hacia abajo después de agregar el mensaje del usuario**
+    chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
+
     // Limpiar el campo de entrada y actualizar el botón de enviar
     document.getElementById('user-input').value = '';
     toggleSendButton();
@@ -213,9 +216,7 @@ async function sendMessage(messageText, isVoiceMessage = false) {
       // Llamar al backend con el mensaje del usuario (método GET)
       const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        // No es necesario el encabezado 'Content-Type' para una solicitud GET sin cuerpo
       });
 
       const data = await response.json(); // Obtener la respuesta en formato JSON
@@ -229,68 +230,75 @@ async function sendMessage(messageText, isVoiceMessage = false) {
         botMessage.className = 'bot-message';
         botMessage.textContent = textResponse;
         chatBody.appendChild(botMessage);
+
+        // **Desplazar el chat hacia abajo después de agregar el mensaje del bot**
         chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
 
         // Si el mensaje es de voz, llamar al endpoint de generación de audio
-        // ... código anterior ...
+        if (isVoiceMessage) {
+          try {
+            // Prepara la URL con el parámetro 'text' en la cadena de consulta
+            const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2');
+            audioRequestUrl.searchParams.append('text', textResponse);
 
-if (isVoiceMessage) {
-  try {
-    // Prepara la URL con el parámetro 'text' en la cadena de consulta
-    const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2');
-    audioRequestUrl.searchParams.append('text', textResponse);
+            // Realiza la solicitud al endpoint de generación de audio
+            const audioResponse = await fetch(audioRequestUrl, {
+              method: 'POST' // Según la documentación, el método es POST
+              // No es necesario 'headers' ni 'body' aquí
+            });
 
-    // Realiza la solicitud al endpoint de generación de audio
-    const audioResponse = await fetch(audioRequestUrl, {
-      method: 'POST', // Según la documentación, el método es POST
-      headers: {
-        // No es necesario 'Content-Type' ya que no enviamos cuerpo
-      },
-      body: null // No se envía cuerpo en la solicitud
-    });
+            if (!audioResponse.ok) {
+              // Manejo de errores
+              const errorText = await audioResponse.text();
+              console.error('Error al generar el audio:', errorText);
+              // Mostrar mensaje de error al usuario
+              const errorMessage = document.createElement('div');
+              errorMessage.className = 'bot-message';
+              errorMessage.textContent = 'Hubo un error al generar el audio. Por favor, inténtalo de nuevo.';
+              chatBody.appendChild(errorMessage);
 
-    if (!audioResponse.ok) {
-      // Manejo de errores
-      const errorText = await audioResponse.text();
-      console.error('Error al generar el audio:', errorText);
-      // Puedes mostrar un mensaje de error al usuario si es necesario
-      const errorMessage = document.createElement('div');
-      errorMessage.className = 'bot-message';
-      errorMessage.textContent = 'Hubo un error al generar el audio. Por favor, inténtalo de nuevo.';
-      chatBody.appendChild(errorMessage);
-    } else {
-      // Leer la respuesta como Blob
-      const audioBlob = await audioResponse.blob();
-      const audioObjectUrl = URL.createObjectURL(audioBlob);
+              // **Desplazar el chat hacia abajo después de agregar el mensaje de error**
+              chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
+            } else {
+              // Leer la respuesta como Blob
+              const audioBlob = await audioResponse.blob();
+              const audioObjectUrl = URL.createObjectURL(audioBlob);
 
-      // Agregar un botón para reproducir el audio
-      const playButton = document.createElement('button');
-      playButton.textContent = "Reproducir Audio";
-      playButton.className = 'audio-play-button';
-      playButton.onclick = () => playAudio(audioObjectUrl);
-      botMessage.appendChild(playButton);
+              // Agregar un botón para reproducir el audio
+              const playButton = document.createElement('button');
+              playButton.textContent = "Reproducir Audio";
+              playButton.className = 'audio-play-button';
+              playButton.onclick = () => playAudio(audioObjectUrl);
+              botMessage.appendChild(playButton);
 
-      // Opcional: Puedes reproducir el audio automáticamente
-      // playAudio(audioObjectUrl);
-    }
+              // **Desplazar el chat hacia abajo después de agregar el botón de reproducción**
+              chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
+            }
 
-  } catch (audioError) {
-    console.error('Error al generar el audio:', audioError);
-    // Mostrar mensaje de error al usuario si es necesario
-    const errorMessage = document.createElement('div');
-    errorMessage.className = 'bot-message';
-    errorMessage.textContent = 'Ocurrió un error al procesar el audio.';
-    chatBody.appendChild(errorMessage);
-  }
-}
+          } catch (audioError) {
+            console.error('Error al generar el audio:', audioError);
+            // Mostrar mensaje de error al usuario
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'bot-message';
+            errorMessage.textContent = 'Ocurrió un error al procesar el audio.';
+            chatBody.appendChild(errorMessage);
 
-// ... código posterior ...
+            // **Desplazar el chat hacia abajo después de agregar el mensaje de error**
+            chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
+            //Reproduccion de audio automatica
+            playAudio(audioObjectUrl);
+
+          }
+        }
 
       } else {
         const errorMessage = document.createElement('div');
         errorMessage.className = 'bot-message';
         errorMessage.textContent = 'No se recibió respuesta válida del backend.';
         chatBody.appendChild(errorMessage);
+
+        // **Desplazar el chat hacia abajo después de agregar el mensaje de error**
+        chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
       }
 
     } catch (error) {
@@ -301,7 +309,9 @@ if (isVoiceMessage) {
       errorMessage.className = 'bot-message';
       errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
       chatBody.appendChild(errorMessage);
-      chatBody.scrollTop = chatBody.scrollHeight;
+
+      // **Desplazar el chat hacia abajo después de agregar el mensaje de error**
+      chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
     }
   }
 }
@@ -314,6 +324,7 @@ function playAudio(audioUrl) {
     // Puedes mostrar un mensaje al usuario si es necesario
   });
 }
+
 // Mostrar un loader
 function showLoading() {
   const chatBody = document.getElementById('chat-body');
