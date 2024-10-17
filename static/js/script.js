@@ -154,7 +154,7 @@ function stopRecording() {
       audioChunks = [];
 
       // Enviar el audio al backend para transcripción
-      fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
+      fetch('https://api.servidorchatbot.com/api/v1/openai/generate-audio-1', {
         method: 'POST',
         body: formData
       })
