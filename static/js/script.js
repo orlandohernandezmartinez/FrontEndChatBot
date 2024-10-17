@@ -1,21 +1,18 @@
 let countingInterval;
 let seconds = 0;
-let mediaRecorder;
-let audioChunks = [];
-let micPermissionGranted = false;
-let stream = null;  // Agregado para manejar el stream de audio
-// Variables para la API de Web Speech
+let stream = null;
 let recognition;
 let recognizing = false;
 
 document.addEventListener("DOMContentLoaded", function () {
-  initWebSpeechAPI();
   const micBtn = document.getElementById('mic-btn');
   const chatBtn = document.querySelector('.chatbot-btn');
   const closeBtn = document.querySelector('.close-btn');
   const sendBtn = document.getElementById('send-btn');
   const preloadedBtns = document.querySelectorAll('.preloaded-messages button');
-  
+
+  // Inicializar la Web Speech API al cargar la página
+  initWebSpeechAPI();
 
   // Cargar historial de chat si existe
   loadChatHistory();
@@ -83,8 +80,8 @@ function sendPreloadedMessage(message) {
 function initWebSpeechAPI() {
   recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
   recognition.lang = 'es-ES';  // Ajustar el idioma
-  recognition.interimResults = false;  // Si quieres resultados parciales mientras habla
-  recognition.maxAlternatives = 1;  // Máximo número de resultados alternativos
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
 
   recognition.onstart = function() {
     recognizing = true;
@@ -92,13 +89,17 @@ function initWebSpeechAPI() {
   };
 
   recognition.onresult = function(event) {
-    const transcript = event.results[0][0].transcript;  // Obtener el texto transcrito
+    const transcript = event.results[0][0].transcript;
     console.log("Transcripción completa:", transcript);
     sendMessage(transcript, true);  // Enviar el mensaje con el flag de mensaje de audio
   };
 
   recognition.onerror = function(event) {
     console.error('Error en la transcripción:', event.error);
+    const errorMessage = document.createElement('div');
+    errorMessage.className = 'bot-message';
+    errorMessage.textContent = 'Hubo un error con la transcripción. Inténtalo de nuevo.';
+    document.getElementById('chat-body').appendChild(errorMessage);
   };
 
   recognition.onend = function() {
@@ -131,8 +132,8 @@ function startRecordingAndCounting() {
   micBtn.classList.add('active');
   micIcon.style.color = 'red';
 
-  // Iniciar la grabación
-  startRecording();
+  // Iniciar la transcripción por voz
+  startRecordingAndTranscribing();
 
   // Iniciar el contador de tiempo
   if (!countingInterval) {
@@ -163,89 +164,10 @@ function stopRecordingAndCounting() {
   userInput.value = '';
   userInput.classList.remove('active');
 
-  // Detener la grabación
-  stopRecording();
+  // Detener la transcripción por voz
+  stopRecordingAndTranscribing();
 }
 
-// Funciones para la grabación de audio
-function startRecording() {
-  console.log("Iniciando grabación...");
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(audioStream => {
-      stream = audioStream;
-      mediaRecorder = new MediaRecorder(stream);
-
-      mediaRecorder.ondataavailable = event => {
-        audioChunks.push(event.data);
-      };
-
-      mediaRecorder.start();
-      console.log("Grabación iniciada.");
-    })
-    .catch(error => console.error("Error al acceder al micrófono:", error));
-}
-
-function stopRecording() {
-  const chatBody = document.getElementById('chat-body');  // Añadir esta línea al inicio
-  console.log("Deteniendo grabación...");
-
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-    
-    mediaRecorder.onstop = () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'audio.wav');
-
-      audioChunks = [];
-
-      // Enviar el audio al backend para transcripción
-      fetch('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        console.log("Grabación detenida:", data.message);
-        if (data.transcription) {
-          showTranscriptionInChat(data.transcription);  // Mostrar transcripción en el chat
-          document.getElementById('user-input').value = data.transcription || '';
-          toggleSendButton();
-        } else {
-          const errorMessage = document.createElement('div');
-          errorMessage.className = 'bot-message';
-          errorMessage.textContent = 'Hubo un error en la transcripción. Inténtalo de nuevo.';
-          chatBody.appendChild(errorMessage);
-        }
-
-        // Verificar si existe una URL de audio en la respuesta
-        if (data.audio_url) {
-          const botMessage = document.createElement('div');
-          botMessage.className = 'bot-message';
-          botMessage.textContent = 'Reproducción disponible:';
-
-          const playButton = document.createElement('button');
-          playButton.textContent = "Reproducir Audio";
-          playButton.className = 'audio-play-button';  // Clase CSS opcional
-          playButton.onclick = () => playAudio(data.audio_url);
-          botMessage.appendChild(playButton);
-
-          chatBody.appendChild(botMessage);
-          console.log("Botón de reproducción de audio agregado:", playButton);
-        }
-      })
-      .catch(error => console.error('Error al detener la grabación:', error));
-    };
-    
-    // Detener el stream de audio
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      stream = null;
-    }
-  } else {
-    console.warn("No se puede detener la grabación: mediaRecorder no está inicializado o ya está inactivo.");
-  }
-}
 // Formatear segundos a mm:ss
 function formatSeconds(seconds) {
   const mins = Math.floor(seconds / 60);
@@ -279,19 +201,21 @@ async function sendMessage(messageText, isVoiceMessage = false) {
     try {
       showLoading();  // Mostrar un loader mientras se procesa la solicitud
 
-      // Preparar los datos para enviar al backend
-      const payload = {
+      // Codificar los parámetros en la URL para la solicitud GET
+      const url = new URL('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant');
+      const params = {
         message: messageText,
         isVoiceMessage: isVoiceMessage  // Flag para indicar si es un mensaje de voz
       };
 
-      // Llamar al backend con el mensaje del usuario
-      const response = await fetch('https://api.servidorchatbot.com/api/v1/openai/chat-with-assistant', {
-        method: 'POST',
+      Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+
+      // Llamar al backend con el mensaje del usuario (método GET)
+      const response = await fetch(url, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)  // Enviar el flag y el mensaje
+        }
       });
 
       const data = await response.json();  // Obtener la respuesta en formato JSON
@@ -316,6 +240,20 @@ async function sendMessage(messageText, isVoiceMessage = false) {
           botMessage.appendChild(playButton);
         }
 
+        // Extraer y renderizar URL de imagen si existe
+        const imageUrl = extractImageUrl(textResponse);
+        if (imageUrl) {
+          const imageElement = document.createElement('img');
+          imageElement.src = imageUrl;
+          imageElement.alt = "Imagen del producto";
+          imageElement.style.maxWidth = '100%';
+
+          const imageContainer = document.createElement('div');
+          imageContainer.className = 'image-message';
+          imageContainer.appendChild(imageElement);
+          chatBody.appendChild(imageContainer);
+        }
+
       } else {
         const errorMessage = document.createElement('div');
         errorMessage.className = 'bot-message';
@@ -336,71 +274,6 @@ async function sendMessage(messageText, isVoiceMessage = false) {
   }
 }
 
-// **NUEVA Función para renderizar el cuadro del producto**
-function renderProductBox() {
-  const chatBody = document.getElementById('chat-body');
-
-  // Crear el cuadro del producto clicable
-  const productBox = document.createElement('div');
-  productBox.style.width = '100px';
-  productBox.style.height = '100px';
-  productBox.style.backgroundColor = '#BABABA';
-  productBox.style.marginTop = '10px';
-  productBox.style.borderRadius = '5px';
-  productBox.style.cursor = 'pointer'; // Hacer el cuadro clicable
-  productBox.onclick = showProductView; // Abrir la vista de producto al hacer clic
-  chatBody.appendChild(productBox);
-
-  // Desplazar el chat hacia abajo
-  chatBody.scrollTop = chatBody.scrollHeight;
-}
-
-// Función para mostrar la vista de producto
-function showProductView() {
-  const chatBody = document.getElementById('chat-body');
-  chatBody.innerHTML = `
-  <div class="product-view">
-      <button class="back-btn" onclick="backToChat()">← Volver</button>
-      <div class="product-box" style="background-color: #FFFFFF; width: 300px; height: 300px;"></div>
-      <p class="product-name">Nombre del producto</p>
-      <p class="product-price">$123.00</p>
-      <p class="product-description-heading">Descripción</p>
-      <p class="product-description-body">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum. Nulla facilisi. Sed cursus ante dapibus diam.</p>
-      <div class="quantity-section">
-          <span class="quantity-label">Cantidad</span>
-          <div class="quantity-btns">
-              <button class="quantity-btn" onclick="decreaseQuantity()">-</button>
-              <span id="quantity-value">1</span>
-              <button class="quantity-btn" onclick="increaseQuantity()">+</button>
-          </div>
-      </div>
-      <button class="add-to-cart-btn">Agregar al carrito</button>
-  </div>
-  `;
-}
-
-// Función para regresar a la vista principal del chatbot
-function backToChat() {
-  restartChat(); // Volver al inicio del chat
-}
-
-// Función para aumentar la cantidad del producto
-function increaseQuantity() {
-  const quantityValue = document.getElementById('quantity-value');
-  let quantity = parseInt(quantityValue.textContent);
-  quantity++;
-  quantityValue.textContent = quantity;
-}
-
-// Función para disminuir la cantidad del producto
-function decreaseQuantity() {
-  const quantityValue = document.getElementById('quantity-value');
-  let quantity = parseInt(quantityValue.textContent);
-  if (quantity > 1) {
-      quantity--;
-      quantityValue.textContent = quantity;
-  }
-}
 // Función para reproducir el audio
 function playAudio(audioUrl) {
   const audio = new Audio(audioUrl);
@@ -408,15 +281,6 @@ function playAudio(audioUrl) {
     audio.play();
   });
   audio.load();  // Pre-carga el audio con el nuevo URL
-}
-
-// Función para añadir efecto visual cuando se reproduzca el audio
-function addAudioEffect(messageElement) {
-  messageElement.classList.add('playing-audio');
-  const duration = 5000;  // Ajusta la duración si es necesario
-  setTimeout(() => {
-    messageElement.classList.remove('playing-audio');
-  }, duration);
 }
 
 // Mostrar un loader
