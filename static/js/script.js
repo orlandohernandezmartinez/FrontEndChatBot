@@ -232,7 +232,9 @@ async function sendMessage(messageText, isVoiceMessage = false) {
         chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
 
         // Si el mensaje es de voz, llamar al endpoint de generación de audio
-        if (isVoiceMessage) {
+        // Si el mensaje es de voz, llamar al endpoint de generación de audio
+      if (isVoiceMessage) {
+        if (textResponse && textResponse.length > 0) {  // Asegúrate de que textResponse contiene texto
           try {
             // Hacer la petición al endpoint de generación de audio
             const audioResponse = await fetch('https://api.servidorchatbot.com/api/v1/openai/generate-audio-1', {
@@ -259,7 +261,10 @@ async function sendMessage(messageText, isVoiceMessage = false) {
           } catch (audioError) {
             console.error('Error al generar el audio:', audioError);
           }
+        } else {
+          console.error('textResponse no contiene texto válido.');
         }
+      }
 
       } else {
         const errorMessage = document.createElement('div');
