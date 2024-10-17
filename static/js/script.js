@@ -260,7 +260,56 @@ async function sendMessage(messageText, isVoiceMessage = false) {
 
         // Si el mensaje es de voz, llamar al endpoint de generación de audio
         if (isVoiceMessage) {
-          // ... Código existente para generar y reproducir el audio ...
+          try {
+            // Prepara la URL con el parámetro 'text' en la cadena de consulta
+            const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2');
+            audioRequestUrl.searchParams.append('text', textResponse);
+
+            // Realiza la solicitud al endpoint de generación de audio
+            const audioResponse = await fetch(audioRequestUrl, {
+              method: 'POST' // Según la documentación, el método es POST
+              // No es necesario 'headers' ni 'body' aquí
+            });
+
+            if (!audioResponse.ok) {
+              // Manejo de errores
+              const errorText = await audioResponse.text();
+              console.error('Error al generar el audio:', errorText);
+              // Mostrar mensaje de error al usuario
+              const errorMessage = document.createElement('div');
+              errorMessage.className = 'bot-message';
+              errorMessage.textContent = 'Hubo un error al generar el audio. Por favor, inténtalo de nuevo.';
+              chatBody.appendChild(errorMessage);
+
+              // Desplazar el chat hacia abajo después de agregar el mensaje de error
+              chatBody.scrollTop = chatBody.scrollHeight;
+            } else {
+              // Leer la respuesta como Blob
+              const audioBlob = await audioResponse.blob();
+              const audioObjectUrl = URL.createObjectURL(audioBlob);
+
+              // Agregar un botón para reproducir el audio
+              const playButton = document.createElement('button');
+              playButton.textContent = "Reproducir Audio";
+              playButton.className = 'audio-play-button';
+              playButton.onclick = () => playAudio(audioObjectUrl);
+              botMessage.appendChild(playButton);
+
+              // Desplazar el chat hacia abajo después de agregar el botón de reproducción
+              chatBody.scrollTop = chatBody.scrollHeight;
+            }
+
+          } catch (audioError) {
+            console.error('Error al generar el audio:', audioError);
+            // Mostrar mensaje de error al usuario
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'bot-message';
+            errorMessage.textContent = 'Ocurrió un error al procesar el audio.';
+            chatBody.appendChild(errorMessage);
+
+            // Desplazar el chat hacia abajo después de agregar el mensaje de error
+            chatBody.scrollTop = chatBody.scrollHeight;
+          }
         }
 
       } else {
@@ -284,14 +333,11 @@ async function sendMessage(messageText, isVoiceMessage = false) {
 
       // Desplazar el chat hacia abajo después de agregar el mensaje de error
       chatBody.scrollTop = chatBody.scrollHeight;
-
       //Reproduccion de audio automatica
-      playAudio(audioObjectUrl);
-
+      playAudio(audioObjectUrl);  
     }
   }
 }
-
 // Función para reproducir el audio
 function playAudio(audioUrl) {
   const audio = new Audio(audioUrl);
