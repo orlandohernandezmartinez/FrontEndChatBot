@@ -232,34 +232,59 @@ async function sendMessage(messageText, isVoiceMessage = false) {
         chatBody.scrollTop = chatBody.scrollHeight; // Desplazar el chat hacia abajo
 
         // Si el mensaje es de voz, llamar al endpoint de generación de audio
-        if (isVoiceMessage) {
-          try {
-            // Hacer la petición al endpoint de generación de audio
-            const audioResponse = await fetch('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ text: textResponse }) // Enviar el texto al backend para generar el audio
-            });
+        // ... código anterior ...
 
-            const audioData = await audioResponse.json();
+if (isVoiceMessage) {
+  try {
+    // Prepara la URL con el parámetro 'text' en la cadena de consulta
+    const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2');
+    audioRequestUrl.searchParams.append('text', textResponse);
 
-            if (audioData.audio_url) {
-              // Agregar un botón para reproducir el audio
-              const playButton = document.createElement('button');
-              playButton.textContent = "Reproducir Audio";
-              playButton.className = 'audio-play-button';
-              playButton.onclick = () => playAudio(audioData.audio_url);
-              botMessage.appendChild(playButton);
-            } else {
-              console.error('No se devolvió una URL de audio.');
-            }
+    // Realiza la solicitud al endpoint de generación de audio
+    const audioResponse = await fetch(audioRequestUrl, {
+      method: 'POST', // Según la documentación, el método es POST
+      headers: {
+        // No es necesario 'Content-Type' ya que no enviamos cuerpo
+      },
+      body: null // No se envía cuerpo en la solicitud
+    });
 
-          } catch (audioError) {
-            console.error('Error al generar el audio:', audioError);
-          }
-        }
+    if (!audioResponse.ok) {
+      // Manejo de errores
+      const errorText = await audioResponse.text();
+      console.error('Error al generar el audio:', errorText);
+      // Puedes mostrar un mensaje de error al usuario si es necesario
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'bot-message';
+      errorMessage.textContent = 'Hubo un error al generar el audio. Por favor, inténtalo de nuevo.';
+      chatBody.appendChild(errorMessage);
+    } else {
+      // Leer la respuesta como Blob
+      const audioBlob = await audioResponse.blob();
+      const audioObjectUrl = URL.createObjectURL(audioBlob);
+
+      // Agregar un botón para reproducir el audio
+      const playButton = document.createElement('button');
+      playButton.textContent = "Reproducir Audio";
+      playButton.className = 'audio-play-button';
+      playButton.onclick = () => playAudio(audioObjectUrl);
+      botMessage.appendChild(playButton);
+
+      // Opcional: Puedes reproducir el audio automáticamente
+      // playAudio(audioObjectUrl);
+    }
+
+  } catch (audioError) {
+    console.error('Error al generar el audio:', audioError);
+    // Mostrar mensaje de error al usuario si es necesario
+    const errorMessage = document.createElement('div');
+    errorMessage.className = 'bot-message';
+    errorMessage.textContent = 'Ocurrió un error al procesar el audio.';
+    chatBody.appendChild(errorMessage);
+  }
+}
+
+// ... código posterior ...
 
       } else {
         const errorMessage = document.createElement('div');
@@ -284,10 +309,10 @@ async function sendMessage(messageText, isVoiceMessage = false) {
 // Función para reproducir el audio
 function playAudio(audioUrl) {
   const audio = new Audio(audioUrl);
-  audio.addEventListener('canplaythrough', () => {
-    audio.play();
+  audio.play().catch(error => {
+    console.error('Error al reproducir el audio:', error);
+    // Puedes mostrar un mensaje al usuario si es necesario
   });
-  audio.load();  // Pre-carga el audio con el nuevo URL
 }
 // Mostrar un loader
 function showLoading() {
