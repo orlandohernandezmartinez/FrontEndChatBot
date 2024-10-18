@@ -24,10 +24,12 @@ body {
   padding: 15px;
   cursor: pointer;
   font-size: 24px;
+  z-index: 1000;
 }
 
+/* Contenedor del chatbot - fondo transparente */
 .chatbot-container {
-  display: none;
+  display: none; /* Oculto inicialmente */
   flex-direction: column;
   justify-content: space-between;
   position: fixed;
@@ -35,9 +37,10 @@ body {
   right: 20px;
   width: 400px;
   height: 600px;
-  background-color: #121212;
+  background-color: rgba(0, 0, 0, 0); /* Fondo transparente */
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 1001;
 }
 
 .chatbot-header {
