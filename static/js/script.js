@@ -176,13 +176,6 @@ function formatSeconds(seconds) {
 }
 
 // Función para extraer la URL de la imagen desde el texto del mensaje
-function extractImageUrl(text) {
-  const urlRegex = /(https?:\/\/[^\s]+(?:png|jpg|jpeg|gif))/gi;
-  const matches = text.match(urlRegex);
-  return matches ? matches[0] : null;  // Devuelve la primera URL encontrada o null si no hay coincidencias
-}
-
-// Función para mostrar la transcripción en el chat
 async function sendMessage(messageText, isVoiceMessage = false) {
   const chatBody = document.getElementById('chat-body');
 
@@ -215,7 +208,7 @@ async function sendMessage(messageText, isVoiceMessage = false) {
 
       // Llamar al backend con el mensaje del usuario (método GET)
       const response = await fetch(url, {
-        method: 'GET',
+        method: 'GET'
         // No es necesario el encabezado 'Content-Type' para una solicitud GET sin cuerpo
       });
 
@@ -229,43 +222,67 @@ async function sendMessage(messageText, isVoiceMessage = false) {
         const botMessage = document.createElement('div');
         botMessage.className = 'bot-message';
 
-        // Utilizar la función extractImageUrl para buscar una URL de imagen en el texto de la respuesta
-        const imageUrl = extractImageUrl(textResponse);
+        let processedText = textResponse;
 
+        // 1. Detectar y eliminar la URL de imagen si existe
+        const imageUrl = extractImageUrl(processedText);
         if (imageUrl) {
-          // Eliminar la URL de imagen del texto de la respuesta
-          const textWithoutImageUrl = textResponse.replace(imageUrl, '').trim();
+          processedText = processedText.replace(imageUrl, '').trim();
+        }
 
-          // Si hay texto adicional, agregarlo al mensaje del bot
-          if (textWithoutImageUrl) {
-            const textNode = document.createTextNode(textWithoutImageUrl);
-            botMessage.appendChild(textNode);
+        // 2. Detectar y eliminar la URL de checkout si existe
+        const checkoutUrlRegex = /(https?:\/\/mayyalimitless\.com\/cart\/[^\s]*)/gi;
+        const checkoutUrlMatch = checkoutUrlRegex.exec(processedText);
+
+        if (checkoutUrlMatch) {
+          const checkoutUrl = checkoutUrlMatch[1];
+
+          // Validar la URL de checkout
+          if (checkoutUrl.startsWith('https://mayyalimitless.com/cart/c/')) {
+            // Eliminar la URL del texto
+            processedText = processedText.replace(checkoutUrl, '').trim();
+
+            // Crear y agregar el botón de checkout
+            const checkoutButton = document.createElement('button');
+            checkoutButton.textContent = "Finalizar compra";
+            checkoutButton.className = 'checkout-button';
+            checkoutButton.onclick = () => {
+              window.open(checkoutUrl, '_blank');
+            };
+            botMessage.appendChild(checkoutButton);
+          } else {
+            console.error('URL de checkout no válida:', checkoutUrl);
+            // Opcional: Puedes agregar un mensaje al usuario si lo deseas
           }
+        }
 
-          // Crear un elemento de imagen y agregarlo al mensaje del bot
+        // 3. Agregar el texto restante al mensaje del bot
+        if (processedText) {
+          const textNode = document.createTextNode(processedText);
+          botMessage.insertBefore(textNode, botMessage.firstChild);
+        }
+
+        // 4. Si hay una imagen, agregarla al mensaje del bot
+        if (imageUrl) {
           const imageElement = document.createElement('img');
           imageElement.src = imageUrl;
           imageElement.alt = 'Imagen';
-          imageElement.className = 'bot-image'; // Agrega una clase para estilos si es necesario
+          imageElement.className = 'bot-image';
           botMessage.appendChild(imageElement);
-        } else {
-          // Si no hay imagen, simplemente agregar el texto al mensaje del bot
-          botMessage.textContent = textResponse;
         }
 
+        // Agregar el mensaje completo al chat
         chatBody.appendChild(botMessage);
-
-        // Desplazar el chat hacia abajo después de agregar el mensaje del bot
         chatBody.scrollTop = chatBody.scrollHeight;
 
-        // Si el mensaje es de voz, llamar al endpoint de generación de audio
-        if (isVoiceMessage) {
-          try {
-            // Prepara la URL con el parámetro 'text' en la cadena de consulta
-            const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2');
-            audioRequestUrl.searchParams.append('text', textResponse);
+        // 5. Generar audio si es necesario
+        if (isVoiceMessage && processedText) {
+          // Generar el audio utilizando 'processedText' (sin las URLs)
+          const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-1');
+          audioRequestUrl.searchParams.append('text', processedText);
 
-            // Realiza la solicitud al endpoint de generación de audio
+          // Realiza la solicitud al endpoint de generación de audio
+          try {
             const audioResponse = await fetch(audioRequestUrl, {
               method: 'POST' // Según la documentación, el método es POST
               // No es necesario 'headers' ni 'body' aquí
@@ -298,7 +315,6 @@ async function sendMessage(messageText, isVoiceMessage = false) {
               // Desplazar el chat hacia abajo después de agregar el botón de reproducción
               chatBody.scrollTop = chatBody.scrollHeight;
             }
-
           } catch (audioError) {
             console.error('Error al generar el audio:', audioError);
             // Mostrar mensaje de error al usuario
@@ -333,11 +349,10 @@ async function sendMessage(messageText, isVoiceMessage = false) {
 
       // Desplazar el chat hacia abajo después de agregar el mensaje de error
       chatBody.scrollTop = chatBody.scrollHeight;
-      //Reproduccion de audio automatica
-      playAudio(audioObjectUrl);  
     }
   }
 }
+
 // Función para reproducir el audio
 function playAudio(audioUrl) {
   const audio = new Audio(audioUrl);
