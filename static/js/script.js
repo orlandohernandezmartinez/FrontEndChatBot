@@ -177,10 +177,22 @@ function formatSeconds(seconds) {
 
 // Definir la función extractImageUrl antes de sendMessage
 function extractImageUrl(text) {
-  // Expresión regular para detectar imágenes en formato Markdown
-  const markdownImageRegex = /!\[.*?\]\((https?:\/\/[^\s]+(?:png|jpg|jpeg|gif))\)/gi;
+  // Expresión regular para detectar imágenes en formato Markdown, incluyendo saltos de línea
+  const markdownImageRegex = /!$begin:math:display$.*?$end:math:display$$begin:math:text$(https?:\\/\\/.*?\\.(?:png|jpg|jpeg|gif)[^$end:math:text$]*)\)/is;
   const matches = markdownImageRegex.exec(text);
-  return matches ? matches[1] : null;  // Devuelve la URL capturada o null si no hay coincidencias
+  return matches ? matches[1] : null; // Devuelve la URL capturada o null si no hay coincidencias
+}
+
+// Función para eliminar formato Markdown
+function removeMarkdown(text) {
+  return text
+    .replace(/!$begin:math:display$.*?$end:math:display$$begin:math:text$.*?$end:math:text$/gis, '') // Eliminar imágenes
+    .replace(/$begin:math:display$.*?$end:math:display$$begin:math:text$.*?$end:math:text$/gis, '') // Eliminar enlaces
+    .replace(/[*_~`]+/g, '') // Eliminar caracteres de formato
+    .replace(/>{1,}/g, '') // Eliminar citas
+    .replace(/#{1,6}\s*/g, '') // Eliminar encabezados
+    .replace(/\n+/g, ' ') // Reemplazar saltos de línea por espacios
+    .trim();
 }
 
 async function sendMessage(messageText, isVoiceMessage = false) {
@@ -224,121 +236,125 @@ async function sendMessage(messageText, isVoiceMessage = false) {
 
       // Mostrar la respuesta en el chat
       const textResponse = data.answer || data.response || ''; // Priorizar 'answer', luego 'response'
-
-      if (textResponse) {
-        const botMessage = document.createElement('div');
-        botMessage.className = 'bot-message';
-
-        let processedText = textResponse;
-
-        // 1. Detectar y eliminar la imagen en formato Markdown si existe
-        const imageUrl = extractImageUrl(processedText);
-        if (imageUrl) {
-          // Eliminar la imagen en formato Markdown del texto
-          const markdownImageRegex = /!\[.*?\]\((https?:\/\/[^\s]+(?:png|jpg|jpeg|gif))\)/gi;
-          processedText = processedText.replace(markdownImageRegex, '').trim();
-        }
-
-        // 2. Detectar y eliminar la URL de checkout si existe
-        const checkoutUrlRegex = /(https?:\/\/mayyalimitless\.com\/cart\/[^\s]*)/gi;
-        const checkoutUrlMatch = checkoutUrlRegex.exec(processedText);
-
-        if (checkoutUrlMatch) {
-          const checkoutUrl = checkoutUrlMatch[1];
-
-          // Validar la URL de checkout
-          if (checkoutUrl.startsWith('https://mayyalimitless.com/cart/')) {
-            // Eliminar la URL del texto
-            processedText = processedText.replace(checkoutUrl, '').trim();
-
-            // Crear y agregar el botón de checkout
-            const checkoutButton = document.createElement('button');
-            checkoutButton.textContent = "Finalizar compra";
-            checkoutButton.className = 'checkout-button';
-            checkoutButton.onclick = () => {
-              window.open(checkoutUrl, '_blank');
-            };
-            botMessage.appendChild(checkoutButton);
-          } else {
-            console.error('URL de checkout no válida:', checkoutUrl);
-            // Opcional: Puedes agregar un mensaje al usuario si lo deseas
+      
+        if (textResponse) {
+          const botMessage = document.createElement('div');
+          botMessage.className = 'bot-message';
+      
+          let processedText = textResponse;
+      
+          // 1. Detectar y eliminar la imagen en formato Markdown si existe
+          const imageUrl = extractImageUrl(processedText);
+          if (imageUrl) {
+            // Eliminar la imagen en formato Markdown del texto
+            const markdownImageRegex = /!\[.*?\]\((https?:\/\/.*?\.(?:png|jpg|jpeg|gif)[^\)]*)\)/is;
+            processedText = processedText.replace(markdownImageRegex, '').trim();
           }
-        }
-
-        // 3. Agregar el texto restante al mensaje del bot
-        if (processedText) {
-          const textNode = document.createTextNode(processedText);
-          botMessage.insertBefore(textNode, botMessage.firstChild);
-        }
-
-        // 4. Si hay una imagen, agregarla al mensaje del bot
-        if (imageUrl) {
-          const imageElement = document.createElement('img');
-          imageElement.src = imageUrl;
-          imageElement.alt = 'Imagen';
-          imageElement.className = 'bot-image';
-          botMessage.appendChild(imageElement);
-        }
-
-        // Agregar el mensaje completo al chat
-        chatBody.appendChild(botMessage);
-        chatBody.scrollTop = chatBody.scrollHeight;
-
-        // 5. Generar audio si es necesario
-        if (isVoiceMessage && processedText) {
-          // Generar el audio utilizando 'processedText' (sin las URLs)
-          const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-1');
-          audioRequestUrl.searchParams.append('text', processedText);
-
-          try {
-            const audioResponse = await fetch(audioRequestUrl, {
-              method: 'POST' // Según la documentación, el método es POST
-            });
-
-            if (!audioResponse.ok) {
-              // Manejo de errores
-              const errorText = await audioResponse.text();
-              console.error('Error al generar el audio:', errorText);
+      
+          // 2. Detectar y eliminar la URL de checkout si existe
+          const checkoutUrlRegex = /(https?:\/\/mayyalimitless\.com\/cart\/[^\s]*)/gi;
+          const checkoutUrlMatch = checkoutUrlRegex.exec(processedText);
+      
+          if (checkoutUrlMatch) {
+            const checkoutUrl = checkoutUrlMatch[1];
+      
+            // Validar la URL de checkout
+            if (checkoutUrl.startsWith('https://mayyalimitless.com/cart/')) {
+              // Eliminar la URL del texto
+              processedText = processedText.replace(checkoutUrl, '').trim();
+      
+              // Crear y agregar el botón de checkout
+              const checkoutButton = document.createElement('button');
+              checkoutButton.textContent = "Finalizar compra";
+              checkoutButton.className = 'checkout-button';
+              checkoutButton.onclick = () => {
+                window.open(checkoutUrl, '_blank');
+              };
+              botMessage.appendChild(checkoutButton);
+            } else {
+              console.error('URL de checkout no válida:', checkoutUrl);
+              // Opcional: Puedes agregar un mensaje al usuario si lo deseas
+            }
+          }
+      
+          // 3. Eliminar cualquier formato Markdown restante del texto
+          processedText = removeMarkdown(processedText);
+      
+          // 4. Agregar el texto restante al mensaje del bot
+          if (processedText) {
+            const textNode = document.createTextNode(processedText);
+            botMessage.insertBefore(textNode, botMessage.firstChild);
+          }
+      
+          // 5. Si hay una imagen, agregarla al mensaje del bot
+          if (imageUrl) {
+            const imageElement = document.createElement('img');
+            imageElement.src = imageUrl;
+            imageElement.alt = 'Imagen';
+            imageElement.className = 'bot-image';
+            botMessage.appendChild(imageElement);
+          }
+      
+          // Agregar el mensaje completo al chat
+          chatBody.appendChild(botMessage);
+          chatBody.scrollTop = chatBody.scrollHeight;
+      
+          // 6. Generar audio si es necesario
+          if (isVoiceMessage && processedText) {
+            // Generar el audio utilizando 'processedText' (sin las URLs y sin formato Markdown)
+            const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-1');
+            audioRequestUrl.searchParams.append('text', processedText);
+      
+            try {
+              const audioResponse = await fetch(audioRequestUrl, {
+                method: 'POST'
+              });
+      
+              if (!audioResponse.ok) {
+                // Manejo de errores
+                const errorText = await audioResponse.text();
+                console.error('Error al generar el audio:', errorText);
+                // Mostrar mensaje de error al usuario
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'bot-message';
+                errorMessage.textContent = 'Hubo un error al generar el audio. Por favor, inténtalo de nuevo.';
+                chatBody.appendChild(errorMessage);
+                chatBody.scrollTop = chatBody.scrollHeight;
+              } else {
+                // Leer la respuesta como Blob
+                const audioBlob = await audioResponse.blob();
+                const audioObjectUrl = URL.createObjectURL(audioBlob);
+      
+                // Agregar un botón para reproducir el audio
+                const playButton = document.createElement('button');
+                playButton.textContent = "Reproducir Audio";
+                playButton.className = 'audio-play-button';
+                playButton.onclick = () => playAudio(audioObjectUrl);
+                botMessage.appendChild(playButton);
+      
+                // Desplazar el chat hacia abajo después de agregar el botón de reproducción
+                chatBody.scrollTop = chatBody.scrollHeight;
+              }
+            } catch (audioError) {
+              console.error('Error al generar el audio:', audioError);
               // Mostrar mensaje de error al usuario
               const errorMessage = document.createElement('div');
               errorMessage.className = 'bot-message';
-              errorMessage.textContent = 'Hubo un error al generar el audio. Por favor, inténtalo de nuevo.';
+              errorMessage.textContent = 'Ocurrió un error al procesar el audio.';
               chatBody.appendChild(errorMessage);
               chatBody.scrollTop = chatBody.scrollHeight;
-            } else {
-              // Leer la respuesta como Blob
-              const audioBlob = await audioResponse.blob();
-              const audioObjectUrl = URL.createObjectURL(audioBlob);
-
-              // Agregar un botón para reproducir el audio
-              const playButton = document.createElement('button');
-              playButton.textContent = "Reproducir Audio";
-              playButton.className = 'audio-play-button';
-              playButton.onclick = () => playAudio(audioObjectUrl);
-              botMessage.appendChild(playButton);
-
-              // Desplazar el chat hacia abajo después de agregar el botón de reproducción
-              chatBody.scrollTop = chatBody.scrollHeight;
             }
-          } catch (audioError) {
-            console.error('Error al generar el audio:', audioError);
-            // Mostrar mensaje de error al usuario
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'bot-message';
-            errorMessage.textContent = 'Ocurrió un error al procesar el audio.';
-            chatBody.appendChild(errorMessage);
-            chatBody.scrollTop = chatBody.scrollHeight;
           }
+      
+        } else {
+          // Manejo de error si no se recibió una respuesta válida
+          const errorMessage = document.createElement('div');
+          errorMessage.className = 'bot-message';
+          errorMessage.textContent = 'No se recibió respuesta válida del backend.';
+          chatBody.appendChild(errorMessage);
+          chatBody.scrollTop = chatBody.scrollHeight;
         }
-
-      } else {
-        const errorMessage = document.createElement('div');
-        errorMessage.className = 'bot-message';
-        errorMessage.textContent = 'No se recibió respuesta válida del backend.';
-        chatBody.appendChild(errorMessage);
-        chatBody.scrollTop = chatBody.scrollHeight;
-      }
-
+      
     } catch (error) {
       console.error('Error al enviar el mensaje:', error);
       hideLoading();
