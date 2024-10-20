@@ -175,7 +175,14 @@ function formatSeconds(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-// Función para extraer la URL de la imagen desde el texto del mensaje
+// Definir la función extractImageUrl antes de sendMessage
+function extractImageUrl(text) {
+  // Expresión regular para detectar imágenes en formato Markdown
+  const markdownImageRegex = /!\[.*?\]\((https?:\/\/[^\s]+(?:png|jpg|jpeg|gif))\)/gi;
+  const matches = markdownImageRegex.exec(text);
+  return matches ? matches[1] : null;  // Devuelve la URL capturada o null si no hay coincidencias
+}
+
 async function sendMessage(messageText, isVoiceMessage = false) {
   const chatBody = document.getElementById('chat-body');
 
@@ -224,10 +231,12 @@ async function sendMessage(messageText, isVoiceMessage = false) {
 
         let processedText = textResponse;
 
-        // 1. Detectar y eliminar la URL de imagen si existe
+        // 1. Detectar y eliminar la imagen en formato Markdown si existe
         const imageUrl = extractImageUrl(processedText);
         if (imageUrl) {
-          processedText = processedText.replace(imageUrl, '').trim();
+          // Eliminar la imagen en formato Markdown del texto
+          const markdownImageRegex = /!\[.*?\]\((https?:\/\/[^\s]+(?:png|jpg|jpeg|gif))\)/gi;
+          processedText = processedText.replace(markdownImageRegex, '').trim();
         }
 
         // 2. Detectar y eliminar la URL de checkout si existe
@@ -238,7 +247,7 @@ async function sendMessage(messageText, isVoiceMessage = false) {
           const checkoutUrl = checkoutUrlMatch[1];
 
           // Validar la URL de checkout
-          if (checkoutUrl.startsWith('https://mayyalimitless.com/cart/c/')) {
+          if (checkoutUrl.startsWith('https://mayyalimitless.com/cart/')) {
             // Eliminar la URL del texto
             processedText = processedText.replace(checkoutUrl, '').trim();
 
@@ -278,14 +287,12 @@ async function sendMessage(messageText, isVoiceMessage = false) {
         // 5. Generar audio si es necesario
         if (isVoiceMessage && processedText) {
           // Generar el audio utilizando 'processedText' (sin las URLs)
-          const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-1');
+          const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2');
           audioRequestUrl.searchParams.append('text', processedText);
 
-          // Realiza la solicitud al endpoint de generación de audio
           try {
             const audioResponse = await fetch(audioRequestUrl, {
               method: 'POST' // Según la documentación, el método es POST
-              // No es necesario 'headers' ni 'body' aquí
             });
 
             if (!audioResponse.ok) {
@@ -297,8 +304,6 @@ async function sendMessage(messageText, isVoiceMessage = false) {
               errorMessage.className = 'bot-message';
               errorMessage.textContent = 'Hubo un error al generar el audio. Por favor, inténtalo de nuevo.';
               chatBody.appendChild(errorMessage);
-
-              // Desplazar el chat hacia abajo después de agregar el mensaje de error
               chatBody.scrollTop = chatBody.scrollHeight;
             } else {
               // Leer la respuesta como Blob
@@ -322,8 +327,6 @@ async function sendMessage(messageText, isVoiceMessage = false) {
             errorMessage.className = 'bot-message';
             errorMessage.textContent = 'Ocurrió un error al procesar el audio.';
             chatBody.appendChild(errorMessage);
-
-            // Desplazar el chat hacia abajo después de agregar el mensaje de error
             chatBody.scrollTop = chatBody.scrollHeight;
           }
         }
@@ -333,8 +336,6 @@ async function sendMessage(messageText, isVoiceMessage = false) {
         errorMessage.className = 'bot-message';
         errorMessage.textContent = 'No se recibió respuesta válida del backend.';
         chatBody.appendChild(errorMessage);
-
-        // Desplazar el chat hacia abajo después de agregar el mensaje de error
         chatBody.scrollTop = chatBody.scrollHeight;
       }
 
@@ -346,8 +347,6 @@ async function sendMessage(messageText, isVoiceMessage = false) {
       errorMessage.className = 'bot-message';
       errorMessage.textContent = 'Hubo un error al procesar tu mensaje. Inténtalo más tarde.';
       chatBody.appendChild(errorMessage);
-
-      // Desplazar el chat hacia abajo después de agregar el mensaje de error
       chatBody.scrollTop = chatBody.scrollHeight;
     }
   }
