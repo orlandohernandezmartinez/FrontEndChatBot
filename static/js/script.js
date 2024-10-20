@@ -287,7 +287,7 @@ async function sendMessage(messageText, isVoiceMessage = false) {
         // 5. Generar audio si es necesario
         if (isVoiceMessage && processedText) {
           // Generar el audio utilizando 'processedText' (sin las URLs)
-          const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-2');
+          const audioRequestUrl = new URL('https://api.servidorchatbot.com/api/v1/openai/generate-audio-1');
           audioRequestUrl.searchParams.append('text', processedText);
 
           try {
