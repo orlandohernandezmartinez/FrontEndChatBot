@@ -178,7 +178,7 @@ function formatSeconds(seconds) {
 // Definir la función extractImageUrl antes de sendMessage
 function extractImageUrl(text) {
   // Expresión regular para detectar imágenes en formato Markdown, incluyendo saltos de línea
-  const markdownImageRegex = /!$begin:math:display$.*?$end:math:display$$begin:math:text$(https?:\\/\\/.*?\\.(?:png|jpg|jpeg|gif)[^$end:math:text$]*)\)/is;
+  const markdownImageRegex = /!\[.*?\]\((https?:\/\/.*?\.(?:png|jpg|jpeg|gif)[^\)]*)\)/is;
   const matches = markdownImageRegex.exec(text);
   return matches ? matches[1] : null; // Devuelve la URL capturada o null si no hay coincidencias
 }
@@ -186,12 +186,12 @@ function extractImageUrl(text) {
 // Función para eliminar formato Markdown
 function removeMarkdown(text) {
   return text
-    .replace(/!$begin:math:display$.*?$end:math:display$$begin:math:text$.*?$end:math:text$/gis, '') // Eliminar imágenes
-    .replace(/$begin:math:display$.*?$end:math:display$$begin:math:text$.*?$end:math:text$/gis, '') // Eliminar enlaces
-    .replace(/[*_~`]+/g, '') // Eliminar caracteres de formato
-    .replace(/>{1,}/g, '') // Eliminar citas
-    .replace(/#{1,6}\s*/g, '') // Eliminar encabezados
-    .replace(/\n+/g, ' ') // Reemplazar saltos de línea por espacios
+    .replace(/!\[.*?\]\(.*?\)/gis, '') // Eliminar imágenes en formato Markdown
+    .replace(/\[.*?\]\(.*?\)/gis, '')  // Eliminar enlaces en formato Markdown
+    .replace(/[*_~`]+/g, '')          // Eliminar caracteres de formato
+    .replace(/>{1,}/g, '')            // Eliminar citas
+    .replace(/#{1,6}\s*/g, '')        // Eliminar encabezados
+    .replace(/\n+/g, ' ')             // Reemplazar saltos de línea por espacios
     .trim();
 }
 
@@ -247,8 +247,8 @@ async function sendMessage(messageText, isVoiceMessage = false) {
           const imageUrl = extractImageUrl(processedText);
           if (imageUrl) {
             // Eliminar la imagen en formato Markdown del texto
-            const markdownImageRegex = /!\[.*?\]\((https?:\/\/.*?\.(?:png|jpg|jpeg|gif)[^\)]*)\)/is;
-            processedText = processedText.replace(markdownImageRegex, '').trim();
+            const markdownImageRegex = /!$begin:math:display$.*?$end:math:display$$begin:math:text$.*?$end:math:text$/gis;
+  processedText = processedText.replace(markdownImageRegex, '').trim();
           }
       
           // 2. Detectar y eliminar la URL de checkout si existe
