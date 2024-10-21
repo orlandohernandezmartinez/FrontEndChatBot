@@ -282,6 +282,22 @@ button:focus {
   border-radius: 5px;
 }
 
+/* Estilos para el botón de "Finalizar Compra" */
+.checkout-button {
+  display: block;
+  margin: 20px auto; /* Centrar horizontalmente y agregar margen vertical */
+  background-color: red; /* Color de fondo rojo */
+  color: white;
+  padding: 20px; /* Aumentar el tamaño del botón */
+  border: none;
+  border-radius: 5px;
+  font-size: 18px; /* Aumentar el tamaño de la fuente */
+  font-weight: bold; /* Texto en negrita */
+  cursor: pointer;
+  width: 80%; /* Ajustar el ancho según sea necesario */
+  text-align: center;
+}
+
 .bot-image {
   max-width: 100%;
   height: auto;
